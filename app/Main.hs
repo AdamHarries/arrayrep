@@ -103,7 +103,7 @@ data FlatRepr = FlatRepr {
 }
 
 instance Show FlatRepr where
-  show FlatRepr {caps = cs, sizes = ss, arrtype = elems} = csizes ++ " | " ++ (show elems)
+  show FlatRepr {caps = cs, sizes = ss, arrtype = elems} = csizes ++ (show elems)
     where 
       csizes = (zip cs ss >>= ppair)
       ppair (c, s) = (condP "c" c) ++ (condP "s" c)
