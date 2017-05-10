@@ -9,12 +9,14 @@ main = do
   putStrLn $ "ArraySC (ArraySC LInt): "
   putStrLn $ " -- " ++ (show fixRRInt)
   putStrLn $ " -- lower: " ++ (show $ lower fixRRInt)
+  putStrLn $ " -- flatten: " ++ (show $ flatten $ lower fixRRInt)
   putStrLn ""
 
   let varvarFloat = Array (Array LFloat)
   putStrLn $ "Array (Array LFloat): "
   putStrLn $ " -- " ++ (show varvarFloat)
   putStrLn $ " -- lower: " ++ (show $ lower varvarFloat)
+  putStrLn $ " -- flatten: " ++ (show $ flatten $ lower varvarFloat)
   putStrLn ""
 
   let sparseMatrixIx = ArraySC ( Array LInt)
@@ -22,6 +24,7 @@ main = do
   putStrLn $ "ArraySC (Array LInt): "
   putStrLn $ " -- " ++ (show sparseMatrixIx)
   putStrLn $ " -- lower: " ++ (show $ lower sparseMatrixIx)
+  putStrLn $ " -- flatten: " ++ (show $ flatten $ lower sparseMatrixIx)
   putStrLn ""
 
 -- lower a lift type to a recursive memory representation
@@ -35,14 +38,15 @@ lower (Array   t) = RecRepr { size = CSVar  , cap = CSVar  , etype = (lower t)}
 -- flatten a recursive representation to a flat one
 -- this is the hard bit...
 flatten :: RecRepr -> FlatRepr
-flatten rr = flatten' 0 rr where
-  flatten' :: Int -> RecRepr -> FlatRepr
-  flatten' level recr = case recr of 
-
-
-flatten CLInt = FlatRepr { caps = [], sizes = [], CInt}
-flatten CLFloat = FlatRepr { caps = [], sizes = [] , CFloat}
-flatten RecRepr {size = s, cap = c, CInt} = FlatRepr
+flatten RecRepr {size = s, cap = c, etype = t} = case t of 
+    CLInt -> FlatRepr {sizes = [s], caps = [c], arrtype = CArr CInt}
+    CLFloat -> FlatRepr {sizes = [s], caps = [c], arrtype = CArr CFloat}
+    rr -> let FlatRepr {sizes = ss, caps = cc, arrtype = at} = flatten rr in 
+      FlatRepr {
+        sizes = s : (map CSArr ss),
+        caps = c : (map CSArr cc), 
+        arrtype = (CArr at)
+      }
 
 
 
@@ -67,9 +71,10 @@ instance Show CSType where
   show CSConst = "const"
   show (CSArr t) = "[" ++ (show t) ++ "]"
 
-condP :: String -> CSType -> String 
+condP :: String -> CSType -> String  
 condP s CSVar = s ++ ": " ++ (show CSVar) ++ " | " 
 condP _ CSConst = ""
+condP s csar = s ++ ": " ++ (show csar) ++ " | " 
 
 -- a recursive "java like" representation essentially identical to the 
 -- lift representation, but with the size and capacity as values
@@ -92,15 +97,15 @@ instance Show EType where
   show (CArr t) = "[" ++ (show t) ++ "]"
 
 data FlatRepr = FlatRepr {
-  caps :: [CSType], -- this can be recursive.
-  sizes :: [CSType],
+  sizes :: [CSType], -- this can be recursive.
+  caps :: [CSType], 
   arrtype :: EType
 }
 
 instance Show FlatRepr where
   show FlatRepr {caps = cs, sizes = ss, arrtype = elems} = csizes ++ " | " ++ (show elems)
     where 
-      csizes = intersperse '|' (zip cs ss >>= ppair)
+      csizes = (zip cs ss >>= ppair)
       ppair (c, s) = (condP "c" c) ++ (condP "s" c)
 
 
